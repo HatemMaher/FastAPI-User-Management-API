@@ -1,13 +1,14 @@
-from fastapi import APIRouter, status, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 
 from database.database import get_db
 
-from schemas.user_schema import UserCreate, UserUpdate
+from dependencies.auth import get_current_user
+from database.models import User
+from schemas.user_schema import  UserUpdate
 from services.user_service import (
     get_all_users,
     get_user_by_id,
-    create_user,
     update_user,
     delete_user
 )
@@ -20,7 +21,8 @@ router = APIRouter(
 
 @router.get("/")
 def users_index(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     return get_all_users(db)
 
@@ -28,7 +30,8 @@ def users_index(
 @router.get("/{user_id}")
 def users_show(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
 
     user = get_user_by_id(db, user_id)
@@ -42,24 +45,25 @@ def users_show(
     return user
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
-def users_store(
-    user: UserCreate,
-    db: Session = Depends(get_db)
-):
+# @router.post("/", status_code=status.HTTP_201_CREATED)
+# def users_store(
+#     user: UserCreate,
+#     db: Session = Depends(get_db)
+# ):
 
-    new_user = create_user(db, user)
+#     new_user = create_user(db, user)
 
-    return {
-        "message": "User created",
-        "data": new_user
-    }
+#     return {
+#         "message": "User created",
+#         "data": new_user
+#     }
 
 @router.put("/{user_id}")
 def users_update(
     user_id: int,
     user: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     
     updated_user = update_user(
@@ -81,8 +85,15 @@ def users_update(
         "data": updated_user
     }
 
-@router.delete("/{user_id}")
-def users_delete(user_id: int, db: Session = Depends(get_db)):
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def users_delete(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
 
     deleted_user = delete_user(db, user_id)
 
@@ -91,7 +102,3 @@ def users_delete(user_id: int, db: Session = Depends(get_db)):
             status_code=404,
             detail="User not found"
         )
-    return {
-        "message": "User deleted successfully",
-        "data": deleted_user
-    }
