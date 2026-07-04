@@ -1,4 +1,7 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from database.database import get_db
 
 from schemas.user_schema import UserCreate, UserUpdate
 from services.user_service import (
@@ -16,14 +19,19 @@ router = APIRouter(
 
 
 @router.get("/")
-def users_index():
-    return get_all_users()
+def users_index(
+    db: Session = Depends(get_db)
+):
+    return get_all_users(db)
 
 
 @router.get("/{user_id}")
-def users_show(user_id: int):
+def users_show(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
 
-    user = get_user_by_id(user_id)
+    user = get_user_by_id(db, user_id)
 
     if not user:
         raise HTTPException(
@@ -35,9 +43,12 @@ def users_show(user_id: int):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def users_store(user: UserCreate):
+def users_store(
+    user: UserCreate,
+    db: Session = Depends(get_db)
+):
 
-    new_user = create_user(user.name)
+    new_user = create_user(db, user)
 
     return {
         "message": "User created",
@@ -47,12 +58,16 @@ def users_store(user: UserCreate):
 @router.put("/{user_id}")
 def users_update(
     user_id: int,
-    user: UserUpdate
+    user: UserUpdate,
+    db: Session = Depends(get_db)
 ):
     
     updated_user = update_user(
+        db,
         user_id,
-        user.name
+        user.name,
+        user.email,
+        user.is_active
     )
 
     if not updated_user:
@@ -62,14 +77,14 @@ def users_update(
         )
     
     return {
-        "messaage": "User updated successfully",
-        "date": update_user
+        "message": "User updated successfully",
+        "data": updated_user
     }
 
 @router.delete("/{user_id}")
-def users_delet(user_id: int):
+def users_delete(user_id: int, db: Session = Depends(get_db)):
 
-    deleted_user = delete_user(user_id)
+    deleted_user = delete_user(db, user_id)
 
     if not deleted_user:
         raise HTTPException(

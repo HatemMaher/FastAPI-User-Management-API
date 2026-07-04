@@ -1,56 +1,79 @@
-users = [
-    {
-        "id": 1,
-        "name": "Hatem"
-    },
-    {
-        "id": 2,
-        "name": "Ahmed"
-    }
-]
+from sqlalchemy.orm import Session
 
-def get_all_users():
-    return users
+from database.models import User
+from schemas.user_schema import UserCreate
 
 
-def get_user_by_id(user_id: int):
-    for user in users:
-        if user["id"] == user_id:
-            return user
-
-    return None
 
 
-def create_user(name: str):
-    new_user = {
-        "id": len(users) + 1,
-        "name": name
-    }
+def get_all_users(db: Session):
+    return db.query(User).all()
 
-    users.append(new_user)
 
-    return new_user
+def get_user_by_id(db: Session, user_id: int):
+    return (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
 
-def update_user(user_id: int, name: str):
 
-    for user in users:
+def create_user(db: Session, user: UserCreate):
 
-        if user["id"] == user_id:
+    db_user = User(
+        name=user.name,
+        email=user.email,
+        is_active=user.is_active
+    )
 
-            user["name"] = name
+    db.add(db_user)
 
-            return user
+    db.commit()
 
-    return None
+    db.refresh(db_user)
 
-def delete_user(user_id: int):
+    return db_user
 
-    for index, user in enumerate(users):
+def update_user(
+    db: Session,
+    user_id: int,
+    name: str,
+    email: str,
+    is_active: bool
+):
 
-        if user["id"] == user_id:
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
 
-            deleted_user = users.pop(index)
+    if not user:
+        return None
 
-            return deleted_user
+    user.name = name
+    user.email = email
+    user.is_active = is_active
+    db.commit()
+    db.refresh(user)
 
-    return None
+    return user
+
+def delete_user(
+    db: Session,
+    user_id: int
+):
+
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+    if not user:
+        return None
+
+    db.delete(user)
+    db.commit()
+
+    return user
